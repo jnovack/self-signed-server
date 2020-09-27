@@ -35,7 +35,7 @@ debug-variables:
 # docker removes and rebuilds the docker container for local development
 docker:
 	docker rmi ${APPLICATION}:${BRANCH} || true
-	docker build ${DOCKER_BUILD_ARGS} -t ${APPLICATION}:${BRANCH} build/package/
+	docker build ${DOCKER_BUILD_ARGS} -t ${APPLICATION}:${BRANCH} -f build/package/Dockerfile .
 
 # update-hooks downloads the newest version of any multi-arch hooks from the parent template repository
 update-hooks:
