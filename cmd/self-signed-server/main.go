@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/jnovack/release"
 	"github.com/jnovack/self-signed-server/internal/handlers"
@@ -41,7 +40,7 @@ func main() {
 	}
 
 	// Server Certificate
-	name := fmt.Sprintf("%s.local", hostname[:strings.IndexByte(hostname, '.')])
+	name := fmt.Sprintf("%s.local", hostname)
 	server, err := certsign.GenerateServer(values, svrCA, []string{name, hostname, "localhost"})
 	if err != nil {
 		log.Fatal(err)
