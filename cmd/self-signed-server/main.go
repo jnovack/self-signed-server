@@ -27,6 +27,7 @@ func main() {
 	values := pkix.Name{
 		Organization: []string{"ACME Company"},
 	}
+
 	// Root CA
 	rootCA, err := certsign.GenerateRoot(values)
 	if err != nil {
@@ -41,7 +42,7 @@ func main() {
 
 	// Server Certificate
 	name := fmt.Sprintf("%s.local", hostname[:strings.IndexByte(hostname, '.')])
-	server, err := certsign.GenerateServer(values, svrCA, []string{name, hostname})
+	server, err := certsign.GenerateServer(values, svrCA, []string{name, hostname, "localhost"})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -57,8 +58,8 @@ func main() {
 
 	// Generate a key pair from your pem-encoded cert and key ([]byte).
 	// https://stackoverflow.com/a/47857805/2061684
-	allCerts := append(append(server.PublicBytes, svrCA.PublicBytes...), rootCA.PublicBytes...)
-	cert, err := tls.X509KeyPair(allCerts, server.PrivateBytes)
+	certChain := append(server.PublicBytes, svrCA.PublicBytes...)
+	cert, err := tls.X509KeyPair(certChain, server.PrivateBytes)
 
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{cert},
