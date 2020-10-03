@@ -11,6 +11,7 @@ echo "[***] Build hook starting..."
 # $(echo "index.docker.io/user/respository" | cut -d '/' -f 3) = "repository"
 APPLICATION=$(echo "${DOCKER_REPO}" | cut -d '/' -f 3)
 
+echo "[---] PWD: ${PWD}"
 echo "[---] DOCKERFILE_PATH: ${DOCKERFILE_PATH}"
 echo "[---] DOCKER_REPO: ${DOCKER_REPO}"
 echo "[---] IMAGE_NAME: ${IMAGE_NAME}"
@@ -20,6 +21,14 @@ echo "[---] APPLICATION: ${APPLICATION}"
 # otherwise, you will need to set ENVIRONMENT VARIABLES for your build.
 if [ -z $GITHUB_USERREPO ]; then
     GITHUB_USERREPO=$(echo "${DOCKER_REPO}" | cut -d '/' -f 2-3)
+fi
+
+# check for Docker Hub building (may break on other CIs)
+if [ ! -z $BUILD_CODE ]; then
+    while [ $BUILD_CODE != `basename $PWD` ]; do
+        cd ..
+    done
+    echo "[>>>] PWD: ${PWD}"
 fi
 
 # Set description from github
@@ -32,8 +41,11 @@ echo "[---] GITHUB_USERREPO: ${GITHUB_USERREPO}"
 echo "[---] DESCRIPTION: ${DESCRIPTION}"
 
 ## Build all variant images.
+shopt -s nullglob
 for FILE in ${DOCKERFILE_PATH}.*
 do
+    echo "[---] FILE: ${FILE}"
+
     TARGET_ARCH=$(echo "${FILE}" | cut -d '.' -f 2)
 
     ## FUDGE Factor because Docker Hub does not respect "32" in os/arch model
@@ -52,38 +64,50 @@ do
             ;;
     esac
 
+    echo "[---] BUILD_ARCH: ${BUILD_ARCH}"
+
     # Not exactly sure this needs to run EVERY time, but for good measure.
     docker run --rm --privileged multiarch/qemu-user-static:register --reset
 
+    echo "[+++] ...building ${IMAGE_NAME}_${BUILD_ARCH}"
+    set -x
     docker build \
-        --file "${DOCKERFILE_PATH}.${TARGET_ARCH}" \
+        --file ${DOCKERFILE_PATH}.${TARGET_ARCH} \
         --build-arg APPLICATION=${APPLICATION} \
         --build-arg BUILD_RFC3339=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
         --build-arg REVISION=$(git rev-parse --short HEAD) \
-    	--build-arg PACKAGE="${GITHUB_USERREPO}" \
-        --build-arg DESCRIPTION="${DESCRIPTION}" \
+    	--build-arg PACKAGE=${GITHUB_USERREPO} \
+        --build-arg "DESCRIPTION=${DESCRIPTION}" \
         --build-arg VERSION=$(git describe --tags --always) \
         -t ${IMAGE_NAME}_${BUILD_ARCH} \
         .
+    set +x
 done
 
 
 ## Build the prime image at the end.
+echo "[+++] ...building ${IMAGE_NAME}_${DEFAULT_ARCH}"
+set -x
 docker build \
-    --file "${DOCKERFILE_PATH}" \
+    --file ${DOCKERFILE_PATH} \
     --build-arg APPLICATION=${APPLICATION} \
     --build-arg BUILD_RFC3339=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
     --build-arg REVISION=$(git rev-parse --short HEAD) \
-  	--build-arg PACKAGE="${GITHUB_USERREPO}" \
-    --build-arg DESCRIPTION="${DESCRIPTION}" \
+  	--build-arg PACKAGE=${GITHUB_USERREPO} \
+    --build-arg "DESCRIPTION=${DESCRIPTION}" \
     --build-arg VERSION=$(git describe --tags --always) \
     -t ${IMAGE_NAME}_${DEFAULT_ARCH} \
     .
+set +x
 
 ## Push the default arch image so manifest-tool can find it
+echo "[+++] ...pushing ${IMAGE_NAME}_${DEFAULT_ARCH}"
+echo docker push ${IMAGE_NAME}_${DEFAULT_ARCH}
 docker push ${IMAGE_NAME}_${DEFAULT_ARCH}
 
 ## Tag the default image so dockerhub can push it.
+echo "[+++] ...tagging ${IMAGE_NAME}_${DEFAULT_ARCH} as ${IMAGE_NAME}"
+echo docker tag ${IMAGE_NAME}_${DEFAULT_ARCH} ${IMAGE_NAME}
 docker tag ${IMAGE_NAME}_${DEFAULT_ARCH} ${IMAGE_NAME}
 
 echo "[***] ...build hook complete."
