@@ -7,6 +7,35 @@
 It is specifically meant to test self-signed certificates behind load-balancers
 such as nginx or haproxy to validate configuration or prove an environment.
 
+Each image generates it's own root, intermediate, and leaf certificate.  The
+root certificate is available for download over HTTP while a "whoami"-like
+response is served over HTTPS to prove you are loadbalancing properly.
+
+In typical usage, the loadbalancer reverse proxy in front of this server would
+not care about the self-signed nature of the backend server and should present
+its own valid certificate to the end-user.
+
+## Quick Start
+
+```yml
+version: '3.8'
+
+services:
+  laodbalancer:
+    ## haproxy/nginx/apache/etc ##
+    depends_on:
+      - dummy
+    ports:
+      - 8080:80
+      - 8443:443
+    restart: always
+
+  dummy:
+    image: jnovack/self-signed-server:latest
+    deploy:
+      replicas: 3
+```
+
 ## Notes
 
 The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”,
