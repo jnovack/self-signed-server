@@ -11,8 +11,8 @@ Each image generates it's own root, intermediate, and leaf certificate.  The
 root certificate is available for download over HTTP while a "whoami"-like
 response is served over HTTPS to prove you are loadbalancing properly.
 
-In typical usage, the loadbalancer reverse proxy in front of this server would
-not care about the self-signed nature of the backend server and should present
+In typical usage, the loadbalancer reverse proxy in front of this server SHOULD
+NOT care about the self-signed nature of the backend server and MUST present
 its own valid certificate to the end-user.
 
 ## Quick Start
@@ -21,7 +21,7 @@ its own valid certificate to the end-user.
 version: '3.8'
 
 services:
-  laodbalancer:
+  loadbalancer:
     ## haproxy/nginx/apache/etc ##
     depends_on:
       - dummy
